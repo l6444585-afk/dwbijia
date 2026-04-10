@@ -1,0 +1,30 @@
+# 虚拟环境
+venv/
+.venv/
+
+# 缓存数据
+*.json
+!package.json
+!tsconfig.json
+
+# Excel 文件
+*.xlsx
+*.xls
+
+# 数据库
+*.db
+
+# 构建产物
+__pycache__/
+*.py[cod]
+dist/
+build/
+*.egg-info/
+
+# Docker
+docker-compose.yml
+Dockerfile
+
+# IDE
+.idea/
+.vscode/

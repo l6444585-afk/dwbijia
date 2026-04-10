@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学习文档 — 跨平台智能比价系统</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #0d1117; color: #c9d1d9; }
+        h1 { color: #58a6ff; border-bottom: 1px solid #30363d; padding-bottom: 10px; }
+        h2 { color: #79c0ff; margin-top: 30px; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th { background: #161b22; color: #58a6ff; padding: 10px; text-align: left; border: 1px solid #30363d; }
+        td { padding: 10px; border: 1px solid #30363d; }
+        tr:hover { background: #161b22; }
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; }
+        .tag-config { background: #1f6feb33; color: #58a6ff; }
+        .tag-tech { background: #23862633; color: #3fb950; }
+        .tag-bug { background: #da363333; color: #f85149; }
+        .tag-arch { background: #a371f733; color: #bc8cff; }
+        .updated { color: #8b949e; font-style: italic; }
+    </style>
+</head>
+<body>
+    <h1>学习文档 — 跨平台智能比价系统</h1>
+    <p class="updated">最后更新: 2026-03-19</p>
+
+    <h2>项目经验教训</h2>
+    <table>
+        <tr><th>日期</th><th>类别</th><th>内容</th></tr>
+        <tr><td>2026-03-19</td><td><span class="tag tag-config">配置</span></td><td>CLAUDE.md 保持 &lt;200 行，超长会导致 Claude 忽略规则</td></tr>
+        <tr><td>2026-03-19</td><td><span class="tag tag-config">配置</span></td><td>项目 CLAUDE.md 不要重复全局规则，只写项目特有的</td></tr>
+        <tr><td>2026-03-19</td><td><span class="tag tag-config">配置</span></td><td>.claudeignore 排除大文件(xlsx/json/venv)节省上下文</td></tr>
+    </table>
+
+    <h2>技术知识</h2>
+    <table>
+        <tr><th>日期</th><th>类别</th><th>内容</th></tr>
+        <tr><td>2026-03-19</td><td><span class="tag tag-tech">爬虫</span></td><td>得物 H5 API 已加签名认证(401)，纯HTTP无法调用，必须浏览器渲染或替代数据源</td></tr>
+        <tr><td>2026-03-19</td><td><span class="tag tag-tech">爬虫</span></td><td>识货(shihuo.cn) __NEXT_DATA__ 含商品列表，详情页含全渠道价格文本</td></tr>
+        <tr><td>2026-03-19</td><td><span class="tag tag-tech">爬虫</span></td><td>识货搜索对小众/EC专供产品匹配率低，返回推荐商品而非搜索结果</td></tr>
+        <tr><td>2026-03-19</td><td><span class="tag tag-tech">爬虫</span></td><td>李宁官网/得物/京东均为SPA渲染，HTTP requests拿不到商品数据</td></tr>
+        <tr><td>2026-03-19</td><td><span class="tag tag-tech">爬虫</span></td><td>venv httpx async需要httpcore[asyncio]依赖，缺少时用同步requests替代</td></tr>
+        <tr><td>2026-03-19</td><td><span class="tag tag-tech">爬虫</span></td><td>EC专供/小众款在得物/京东/淘宝搜不到，用Excel到手价作为兜底数据源</td></tr>
+        <tr><td>2026-03-19</td><td><span class="tag tag-tech">爬虫</span></td><td>Playwright headless对得物也无效，SPA检测无头浏览器不返回价格</td></tr>
+        <tr><td>2026-03-19</td><td><span class="tag tag-bug">爬虫</span></td><td>识货搜索对所有关键词都返回同一热门商品(赤兔9 Pro)，不能用于补全未映射产品</td></tr>
+        <tr><td>2026-03-19</td><td><span class="tag tag-bug">爬虫</span></td><td>什么值得买/慢慢买/逛丢/京东搜索都有反爬，WebFetch无法直接抓取</td></tr>
+        <tr><td>2026-03-19</td><td><span class="tag tag-bug">爬虫</span></td><td>错误匹配的价格数据危害极大，写入前必须备份+回滚，写入后需人工验证</td></tr>
+    </table>
+
+    <h2>踩坑记录</h2>
+    <table>
+        <tr><th>日期</th><th>问题</th><th>解决方案</th></tr>
+        <tr><td>2026-03-19</td><td>识货搜索匹配阈值(0.3)太低，错误匹配到其他商品价格</td><td>提高阈值或放弃低匹配结果，错误数据比没有数据更危险</td></tr>
+        <tr><td>2026-03-19</td><td>百度搜索到的价格可能是配件而非主商品(飓风¥79)</td><td>价格范围校验需结合品类：鞋类&gt;100，服装&gt;30</td></tr>
+        <tr><td>2026-03-19</td><td>补全脚本写入错误价格后需要手动回滚</td><td>先备份缓存再写入，或用不可变追加模式记录数据来源</td></tr>
+    </table>
+
+    <h2>架构决策</h2>
+    <table>
+        <tr><th>日期</th><th>决策</th><th>原因</th></tr>
+        <tr><td>2026-03-19</td><td>识货详情页作为全渠道价格主要来源</td><td>一次请求获得得物/淘宝/天猫/京东/拼多多全部价格</td></tr>
+        <tr><td>2026-03-19</td><td>缺少识货映射的产品需要浏览器渲染方案</td><td>HTTP对SPA站点(得物/京东/李宁官网)无效，必须Playwright headless</td></tr>
+    </table>
+</body>
+</html>

@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>智能比价系统 - 淘宝 × 得物</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#222;min-height:100vh;font-size:14px}
+    
+    .topbar{background:rgba(255,255,255,0.95);backdrop-filter:blur(10px);color:#333;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 20px rgba(0,0,0,.1);position:sticky;top:0;z-index:100}
+    .topbar h1{font-size:20px;font-weight:700;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .topbar .sub{font-size:12px;color:#666;margin-top:4px}
+    
+    .wrap{max-width:1400px;margin:0 auto;padding:20px}
+    
+    .card{background:#fff;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.1);padding:24px;margin-bottom:20px;transition:transform 0.2s}
+    .card:hover{transform:translateY(-2px)}
+    .card-title{font-size:16px;font-weight:700;color:#333;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+    .badge{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-radius:50%;width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+    
+    .upload-zone{border:2px dashed #ddd;border-radius:12px;padding:40px;text-align:center;cursor:pointer;transition:.3s;background:#fafafa}
+    .upload-zone:hover,.upload-zone.over{border-color:#667eea;background:#f0f4ff}
+    .upload-zone .ico{font-size:48px;margin-bottom:12px}
+    .upload-zone p{color:#999;font-size:14px;margin-top:8px}
+    .fname{margin-top:12px;font-size:14px;color:#667eea;font-weight:600}
+    #file-input{display:none}
+    
+    .detect-strip{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+    .dtag{padding:4px 12px;border-radius:16px;font-size:12px;font-weight:500;display:inline-flex;align-items:center;gap:4px}
+    .dtag.ok{background:#e8f5e9;color:#2e7d32}
+    .dtag.no{background:#f5f5f5;color:#ccc;border:1px dashed #e0e0e0}
+    
+    .params{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:16px}
+    .pi{display:flex;flex-direction:column;gap:6px}
+    .pi label{font-size:12px;color:#666;font-weight:500}
+    .pi input,.pi select{padding:10px 14px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none;transition:.2s;background:#fff}
+    .pi input:focus,.pi select:focus{border-color:#667eea;box-shadow:0 0 0 3px rgba(102,126,234,0.1)}
+    .pi-group{display:flex;align-items:center;gap:8px}
+    .pi-group span{font-size:13px;color:#666}
+    
+    .btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:.2s;white-space:nowrap}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .btn-primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
+    .btn-primary:not(:disabled):hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(102,126,234,0.4)}
+    .btn-success{background:linear-gradient(135deg,#11998e,#38ef7d);color:#fff}
+    .btn-success:not(:disabled):hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(17,153,142,0.4)}
+    .btn-warning{background:linear-gradient(135deg,#f093fb,#f5576c);color:#fff}
+    .btn-warning:not(:disabled):hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(245,87,108,0.4)}
+    
+    .action-row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:20px}
+    
+    .prog-wrap{display:none;margin-top:16px}
+    .prog-wrap.show{display:block}
+    .prog-bg{background:#e0e0e0;border-radius:8px;height:8px;overflow:hidden}
+    .prog-fg{height:100%;background:linear-gradient(90deg,#667eea,#764ba2);border-radius:8px;transition:width .3s}
+    .prog-lbl{font-size:12px;color:#666;margin-top:8px}
+    
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:20px}
+    .stat{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,.08);text-align:center}
+    .stat .n{font-size:32px;font-weight:700;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .stat .l{font-size:12px;color:#999;margin-top:4px}
+    .stat.green .n{background:linear-gradient(135deg,#11998e,#38ef7d);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .stat.red .n{background:linear-gradient(135deg,#f093fb,#f5576c);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    
+    .tbl-wrap{overflow-x:auto;border-radius:12px;border:1px solid #e0e0e0;margin-top:16px}
+    table{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap}
+    thead th{background:#f8f9fa;padding:12px 14px;text-align:left;font-weight:600;color:#666;border-bottom:2px solid #e0e0e0;position:sticky;top:0;z-index:1}
+    tbody tr:hover{background:#f8f9ff}
+    tbody td{padding:10px 14px;border-bottom:1px solid #f0f0f0;color:#333}
+    
+    .pos{color:#11998e;font-weight:700}
+    .neg{color:#f5576c;font-weight:700}
+    .muted{color:#ccc}
+    .tag{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+    .tag-g{background:#d4edda;color:#155724}
+    .tag-r{background:#f8d7da;color:#721c24}
+    .tag-y{background:#fff3cd;color:#856404}
+    .src{display:inline-block;padding:2px 6px;border-radius:8px;font-size:10px;font-weight:600;margin-left:4px;background:#e3f2fd;color:#1565c0}
+    .pending{color:#ccc;font-style:italic}
+    a.link{color:#667eea;text-decoration:none;font-size:11px}
+    a.link:hover{text-decoration:underline}
+    
+    .msg{display:none;padding:12px 16px;border-radius:8px;font-size:13px;margin-top:12px}
+    .msg.show{display:block}
+    .msg.err{background:#f8d7da;color:#721c24}
+    .msg.ok{background:#d4edda;color:#155724}
+    .msg.inf{background:#d1ecf1;color:#0c5460}
+    .tip{font-size:12px;color:#666;background:#fff9e6;border-left:3px solid #ffc107;padding:10px 14px;border-radius:4px;margin-top:12px;line-height:1.6}
+    
+    .hidden{display:none!important}
+    
+    @media (max-width:768px){
+      .topbar{padding:12px 16px}
+      .topbar h1{font-size:16px}
+      .wrap{padding:12px}
+      .card{padding:16px}
+      .params{grid-template-columns:1fr}
+      .stats{grid-template-columns:repeat(2,1fr)}
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <h1>🛒 智能比价系统</h1>
+    <div class="sub">淘宝 × 得物 | Excel上传 → 智能计算 → 实时爬取 → 利润分析</div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- ① 上传 -->
+  <div class="card">
+    <div class="card-title"><span class="badge">1</span> 上传产品Excel</div>
+    <div class="upload-zone" id="zone" onclick="document.getElementById('file-input').click()">
+      <div class="ico">📊</div>
+      <p>点击或拖拽 .xlsx / .xls 文件</p>
+      <div class="fname" id="fname"></div>
+    </div>
+    <input type="file" id="file-input" accept=".xlsx,.xls"/>
+    <div class="detect-strip hidden" id="detect-strip"></div>
+    <div id="upload-msg" class="msg"></div>
+  </div>
+
+  <!-- ② 参数 -->
+  <div class="card hidden" id="param-card">
+    <div class="card-title"><span class="badge">2</span> 配置参数</div>
+    <div class="params">
+      <div class="pi">
+        <label>大额消费券（满减）</label>
+        <input id="coupon" type="text" placeholder="如: 2000-200"/>
+      </div>
+      <div class="pi">
+        <label>购物金充值</label>
+        <div class="pi-group">
+          <span>充</span>
+          <input id="jc-charge" type="number" value="2000" style="width:100px"/>
+          <span>元 得</span>
+          <input id="jc-credit" type="number" value="2100" style="width:100px"/>
+          <span>元</span>
+        </div>
+      </div>
+      <div class="pi">
+        <label>活动立减（元）</label>
+        <input id="activity-deduct" type="number" value="0" min="0" step="1"/>
+      </div>
+      <div class="pi">
+        <label>得物佣金率（%）</label>
+        <input id="commission" type="number" value="8" min="0" max="30" step="0.5"/>
+      </div>
+    </div>
+    <div class="tip">
+      💡 <strong>购物金折扣率</strong> = (得 − 充) / 得。默认充2000得2100 ≈ 4.76%<br>
+      💡 <strong>消费券</strong>按批次总价比例分摊到每件商品<br>
+      💡 <strong>得物个人卖家价</strong>为该货号当前最低出售价
+    </div>
+    <div class="action-row">
+      <button class="btn btn-primary" id="btn-calc" onclick="doCalc()">⚡ 计算最低到手价</button>
+      <button class="btn btn-warning" id="btn-scrape" onclick="doScrape()" disabled>🕷 查询得物价格</button>
+      <button class="btn btn-success" id="btn-export" onclick="doExport()" disabled>⬇ 导出Excel</button>
+    </div>
+    <div class="prog-wrap" id="prog-wrap">
+      <div class="prog-bg"><div class="prog-fg" id="prog-bar" style="width:0%"></div></div>
+      <div class="prog-lbl" id="prog-lbl"></div>
+    </div>
+    <div id="param-msg" class="msg"></div>
+  </div>
+
+  <!-- ③ 结果 -->
+  <div id="result-section" class="hidden">
+    <div class="stats">
+      <div class="stat"><div class="n" id="st-total">-</div><div class="l">总款数</div></div>
+      <div class="stat green"><div class="n" id="st-profit">-</div><div class="l">✅ 有利润</div></div>
+      <div class="stat red"><div class="n" id="st-loss">-</div><div class="l">❌ 亏损</div></div>
+      <div class="stat"><div class="n" id="st-avg">-</div><div class="l">平均差价</div></div>
+    </div>
+    <div class="card" style="padding:16px 20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+        <span style="font-size:15px;font-weight:600;color:#333">商品列表 <span id="cnt" style="font-size:13px;color:#999;font-weight:400"></span></span>
+        <span style="font-size:12px;color:#999" id="calc-note"></span>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>货号</th>
+              <th>商品名称</th>
+              <th>到手价</th>
+              <th>活动立减</th>
+              <th>消费券</th>
+              <th>购物金</th>
+              <th>最终成本</th>
+              <th>得物价格</th>
+              <th>扣佣后</th>
+              <th>差价利润</th>
+              <th>结论</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+let S = {
+  fileId: null, ext: null, detected: {},
+  rawRows: [],
+  calcMap: {},
+  dewuMap: {},
+  manualPrices: {},
+  phase: 'idle',
+};
+
+const zone = $('zone'), fi = $('file-input');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('over'); if(e.dataTransfer.files[0]) upload(e.dataTransfer.files[0]); });
+fi.addEventListener('change', () => { if(fi.files[0]) upload(fi.files[0]); });
+
+async function upload(file) {
+  showMsg('upload-msg','inf','上传中...');
+  $('fname').textContent = '';
+  $('detect-strip').classList.add('hidden');
+  $('param-card').classList.add('hidden');
+  $('result-section').classList.add('hidden');
+  S = { fileId:null, ext:null, detected:{}, rawRows:[], calcMap:{}, dewuMap:{}, manualPrices:{}, phase:'idle' };
+
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch('/api/compare/upload', { method:'POST', body:fd });
+    const data = await res.json();
+    if (!res.ok) { showMsg('upload-msg','err', data.detail || '上传失败'); return; }
+
+    S.fileId = data.file_id;
+    S.ext = data.ext;
+    S.detected = data.detected;
+    S.rawRows = data.rows;
+
+    $('fname').textContent = `✅ ${file.name}（${data.total} 行）`;
+    showMsg('upload-msg','ok', `读取成功：${data.total} 行`);
+
+    renderDetect(data.detected);
+    $('param-card').classList.remove('hidden');
+    $('result-section').classList.remove('hidden');
+    $('btn-scrape').disabled = true;
+    $('btn-export').disabled = true;
+    renderTable();
+    $('cnt').textContent = `共 ${data.rows.length} 款`;
+
+  } catch(e) {
+    showMsg('upload-msg','err','网络错误: '+e.message);
+  }
+}
+
+function renderDetect(detected) {
+  const el = $('detect-strip');
+  const labels = {
+    price:'到手价', article:'货号', model:'型号', title:'标题',
+    taobao_id:'商品ID', act_price:'活动价', stock:'库存'
+  };
+  el.innerHTML = Object.entries(labels).map(([k, lbl]) => {
+    const col = detected[k];
+    return col
+      ? `<div class="dtag ok">✓ ${lbl}：${col}</div>`
+      : `<div class="dtag no">✗ ${lbl}</div>`;
+  }).join('');
+  el.classList.remove('hidden');
+}
+
+async function doCalc() {
+  if (!S.fileId) return;
+  const btn = $('btn-calc');
+  btn.disabled = true;
+  showMsg('param-msg','inf','计算中...');
+  S.calcMap = {};
+
+  const payload = {
+    file_id: S.fileId,
+    ext: S.ext,
+    coupon: $('coupon').value.trim(),
+    commission: parseFloat($('commission').value) / 100,
+    jingou_charge: parseFloat($('jc-charge').value) || 2000,
+    jingou_credit: parseFloat($('jc-credit').value) || 2100,
+    activity_deduct: parseFloat($('activity-deduct').value) || 0,
+  };
+
+  try {
+    const res = await fetch('/api/compare/calculate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) { showMsg('param-msg','err', data.detail); btn.disabled=false; return; }
+
+    data.rows.forEach(r => { S.calcMap[r._idx] = r; });
+
+    const couponInfo = data.coupon ? `消费券：${data.coupon}` : '无消费券';
+    const jrInfo = `购物金折扣：${data.jingou_rate}%`;
+    $('calc-note').textContent = `${couponInfo} | ${jrInfo}`;
+
+    showMsg('param-msg','ok',`✅ 计算完成（${data.total} 款）`);
+    $('btn-scrape').disabled = false;
+    $('btn-export').disabled = false;
+    renderTable();
+    updateStats();
+
+  } catch(e) {
+    showMsg('param-msg','err','请求失败: '+e.message);
+  }
+  btn.disabled = false;
+}
+
+async function doScrape() {
+  showMsg('param-msg','inf','爬取功能开发中...');
+}
+
+function renderTable() {
+  const rows = S.rawRows;
+  $('tbody').innerHTML = rows.map((r, i) => {
+    const calc = S.calcMap[r._idx] || {};
+    const dewu = S.dewuMap[r._idx] || {};
+
+    const hasCalc = calc.taobao_final !== undefined;
+    const hasDewu = dewu.dewu_price !== undefined;
+    const profit = hasDewu ? dewu.profit : null;
+
+    let profitCell, tagCell;
+    if (!hasCalc) {
+      profitCell = `<span class="pending">待计算</span>`;
+      tagCell = `<span class="pending">—</span>`;
+    } else if (profit === null || profit === undefined) {
+      profitCell = hasDewu ? `<span class="muted">N/A</span>` : `<span class="pending">待查询</span>`;
+      tagCell = hasDewu ? `<span class="tag tag-y">❓ 无价格</span>` : `<span class="pending">—</span>`;
+    } else if (profit > 0) {
+      profitCell = `<span class="pos">+${f(profit)}</span>`;
+      tagCell = `<span class="tag tag-g">✅ 有利润</span>`;
+    } else {
+      profitCell = `<span class="neg">${f(profit)}</span>`;
+      tagCell = `<span class="tag tag-r">❌ 亏损</span>`;
+    }
+
+    return `<tr>
+      <td class="muted">${i+1}</td>
+      <td>${r._search_term||'—'}<span class="src">${r._search_src}</span></td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${r.col_title||''}">${(r.col_title||'—').slice(0,25)}${(r.col_title||'').length>25?'...':''}</td>
+      <td>${r.col_price||'—'}</td>
+      <td style="color:#f5576c">${hasCalc && calc.activity_deduct > 0 ? '-'+f(calc.activity_deduct) : '<span class="muted">—</span>'}</td>
+      <td style="color:#f5576c">${hasCalc ? '-'+f(calc.coupon_share) : '<span class="pending">—</span>'}</td>
+      <td style="color:#f5576c">${hasCalc ? '-'+f(calc.jingou_deduct) : '<span class="pending">—</span>'}</td>
+      <td><strong>${hasCalc ? f(calc.taobao_final) : '<span class="pending">待计算</span>'}</strong></td>
+      <td>${hasDewu ? f(dewu.dewu_price) : '<span class="pending">待查询</span>'}</td>
+      <td>${hasDewu ? f(dewu.dewu_net) : '<span class="pending">—</span>'}</td>
+      <td>${profitCell}</td>
+      <td>${tagCell}</td>
+    </tr>`;
+  }).join('');
+}
+
+function updateStats() {
+  const rows = S.rawRows;
+  const total = rows.length;
+  let profit=0, loss=0, profitSum=0, profitCnt=0;
+  rows.forEach(r => {
+    const d = S.dewuMap[r._idx];
+    if (!d) return;
+    const p = d.profit;
+    if (p == null) return;
+    if (p > 0) { profit++; profitSum += p; profitCnt++; }
+    else { loss++; }
+  });
+  $('st-total').textContent = total;
+  $('st-profit').textContent = profit;
+  $('st-loss').textContent = loss;
+  $('st-avg').textContent = profitCnt > 0 ? '+'+f(profitSum/profitCnt) : '—';
+}
+
+async function doExport() {
+  const rows = S.rawRows.map(r => {
+    const calc = S.calcMap[r._idx] || {};
+    const dewu = S.dewuMap[r._idx] || {};
+    return { ...r, ...calc, ...dewu };
+  });
+  if (!rows.length) return;
+  const btn = $('btn-export');
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/compare/export', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ rows }),
+    });
+    if (res.ok) {
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `比价结果_${new Date().toLocaleDateString('zh-CN').replace(/\//g,'-')}.xlsx`;
+      a.click();
+    } else { alert('导出失败'); }
+  } catch(e) { alert('导出失败: '+e.message); }
+  btn.disabled = false;
+}
+
+function f(v) {
+  if (v == null || v === undefined) return '—';
+  const n = parseFloat(v);
+  return isNaN(n) ? String(v) : n.toFixed(2);
+}
+
+function showMsg(id, type, text) {
+  const el = $(id);
+  el.className = `msg show ${type}`;
+  el.textContent = text;
+}
+</script>
+</body>
+</html>

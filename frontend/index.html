@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>跨平台智能比价 - 淘宝 vs 得物</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.4.38/dist/vue.global.prod.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        taobao: '#FF4400',
+                        dewu: '#00C8AA',
+                        primary: '#6366f1',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+<div id="app">
+    <!-- 顶部导航 -->
+    <nav class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                    <span class="text-white font-bold text-sm">比</span>
+                </div>
+                <h1 class="text-xl font-bold text-gray-800">智能比价</h1>
+                <span class="text-xs text-gray-400 hidden sm:inline">淘宝 vs 得物</span>
+            </div>
+            <div class="flex items-center space-x-3">
+                <template v-if="user">
+                    <span class="text-sm text-gray-600">{{ user.username }}</span>
+                    <button @click="showFavorites = true" class="text-sm text-primary hover:underline">收藏</button>
+                    <button @click="logout" class="text-sm text-gray-400 hover:text-red-500">退出</button>
+                </template>
+                <template v-else>
+                    <button @click="showLogin = true" class="text-sm px-3 py-1 border border-primary text-primary rounded-lg hover:bg-primary hover:text-white transition">登录</button>
+                </template>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 搜索区域 -->
+    <div class="bg-gradient-to-r from-indigo-500 to-purple-600 py-12 px-4">
+        <div class="max-w-3xl mx-auto text-center">
+            <h2 class="text-white text-2xl md:text-3xl font-bold mb-6">找到最优价格，聪明购物</h2>
+            <div class="flex rounded-xl overflow-hidden shadow-lg">
+                <input v-model="keyword" @keyup.enter="search"
+                       class="flex-1 px-6 py-4 text-lg outline-none" placeholder="输入商品名称，如：Nike Air Force 1">
+                <button @click="search" :disabled="loading"
+                        class="bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 font-bold text-lg transition disabled:opacity-50">
+                    {{ loading ? '搜索中...' : '比价搜索' }}
+                </button>
+            </div>
+            <div class="flex justify-center space-x-4 mt-4">
+                <button v-for="tag in hotTags" :key="tag" @click="keyword = tag; search()"
+                        class="text-white/80 text-sm px-3 py-1 rounded-full border border-white/30 hover:bg-white/20 transition">
+                    {{ tag }}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 比价统计卡片 -->
+    <div v-if="result" class="max-w-7xl mx-auto px-4 -mt-6">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-white rounded-xl shadow p-4 text-center">
+                <div class="text-2xl font-bold text-taobao">¥{{ result.stats.taobao_avg_price }}</div>
+                <div class="text-sm text-gray-500 mt-1">淘宝均价</div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 text-center">
+                <div class="text-2xl font-bold text-dewu">¥{{ result.stats.dewu_avg_price }}</div>
+                <div class="text-sm text-gray-500 mt-1">得物均价</div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 text-center">
+                <div class="text-2xl font-bold text-primary">{{ result.stats.matched_count }}</div>
+                <div class="text-sm text-gray-500 mt-1">匹配商品</div>
+            </div>
+            <div class="bg-white rounded-xl shadow p-4 text-center">
+                <div class="text-2xl font-bold text-green-600">¥{{ result.stats.max_save_amount }}</div>
+                <div class="text-sm text-gray-500 mt-1">最高省</div>
+            </div>
+        </div>
+
+        <!-- 推荐建议 -->
+        <div v-if="result.recommendation" class="mt-4 bg-white rounded-xl shadow p-4 flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-full flex items-center justify-center"
+                 :class="result.recommendation.platform === 'taobao' ? 'bg-orange-100' : 'bg-teal-100'">
+                <span class="text-lg">💡</span>
+            </div>
+            <div>
+                <div class="font-medium text-gray-800">{{ result.recommendation.recommendation }}</div>
+                <div v-if="result.recommendation.avg_save" class="text-sm text-gray-500">
+                    平均每件可省 ¥{{ result.recommendation.avg_save }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 标签切换 -->
+    <div v-if="result" class="max-w-7xl mx-auto px-4 mt-6">
+        <div class="flex space-x-1 bg-gray-100 rounded-lg p-1 w-fit">
+            <button @click="activeTab = 'matched'" :class="activeTab === 'matched' ? 'bg-white shadow text-primary' : 'text-gray-600'"
+                    class="px-4 py-2 rounded-lg font-medium text-sm transition">比价结果</button>
+            <button @click="activeTab = 'taobao'" :class="activeTab === 'taobao' ? 'bg-white shadow text-taobao' : 'text-gray-600'"
+                    class="px-4 py-2 rounded-lg font-medium text-sm transition">淘宝 ({{ result.taobao.items.length }})</button>
+            <button @click="activeTab = 'dewu'" :class="activeTab === 'dewu' ? 'bg-white shadow text-dewu' : 'text-gray-600'"
+                    class="px-4 py-2 rounded-lg font-medium text-sm transition">得物 ({{ result.dewu.items.length }})</button>
+            <button @click="activeTab = 'chart'" :class="activeTab === 'chart' ? 'bg-white shadow text-primary' : 'text-gray-600'"
+                    class="px-4 py-2 rounded-lg font-medium text-sm transition">价格图表</button>
+        </div>
+    </div>
+
+    <!-- 比价结果列表 -->
+    <div v-if="result" class="max-w-7xl mx-auto px-4 py-6">
+        <!-- 匹配比价 -->
+        <div v-if="activeTab === 'matched'" class="space-y-4">
+            <div v-if="result.matched.length === 0" class="text-center text-gray-400 py-12">暂无匹配的比价结果</div>
+            <div v-for="(m, idx) in result.matched" :key="idx"
+                 class="bg-white rounded-xl shadow-sm hover:shadow-md transition p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-medium px-2 py-1 rounded-full"
+                          :class="m.cheaper_platform === 'taobao' ? 'bg-orange-100 text-taobao' : 'bg-teal-100 text-dewu'">
+                        {{ m.cheaper_platform === 'taobao' ? '淘宝更便宜' : '得物更便宜' }}
+                    </span>
+                    <span class="text-green-600 font-bold">省 ¥{{ m.price_diff }} ({{ m.save_percent }}%)</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- 淘宝 -->
+                    <div class="flex items-start space-x-3 p-3 rounded-lg" :class="m.cheaper_platform === 'taobao' ? 'bg-orange-50 ring-2 ring-taobao/20' : 'bg-gray-50'">
+                        <div class="w-20 h-20 bg-gray-200 rounded-lg flex-shrink-0 flex items-center justify-center text-xl">🛒</div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-xs text-taobao font-medium mb-1">淘宝</div>
+                            <div class="text-sm text-gray-800 line-clamp-2">{{ m.taobao.title }}</div>
+                            <div class="flex items-baseline space-x-2 mt-1">
+                                <span class="text-lg font-bold text-taobao">¥{{ m.taobao.price }}</span>
+                                <span v-if="m.taobao.original_price" class="text-xs text-gray-400 line-through">¥{{ m.taobao.original_price }}</span>
+                            </div>
+                            <div class="text-xs text-gray-400 mt-1">销量 {{ m.taobao.sales }} | {{ m.taobao.shop_name }}</div>
+                        </div>
+                    </div>
+                    <!-- 得物 -->
+                    <div class="flex items-start space-x-3 p-3 rounded-lg" :class="m.cheaper_platform === 'dewu' ? 'bg-teal-50 ring-2 ring-dewu/20' : 'bg-gray-50'">
+                        <div class="w-20 h-20 bg-gray-200 rounded-lg flex-shrink-0 flex items-center justify-center text-xl">👟</div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-xs text-dewu font-medium mb-1">得物</div>
+                            <div class="text-sm text-gray-800 line-clamp-2">{{ m.dewu.title }}</div>
+                            <div class="flex items-baseline space-x-2 mt-1">
+                                <span class="text-lg font-bold text-dewu">¥{{ m.dewu.price }}</span>
+                                <span v-if="m.dewu.original_price" class="text-xs text-gray-400 line-through">¥{{ m.dewu.original_price }}</span>
+                            </div>
+                            <div class="text-xs text-gray-400 mt-1">销量 {{ m.dewu.sales }} | {{ m.dewu.shop_name }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 淘宝列表 -->
+        <div v-if="activeTab === 'taobao'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div v-for="item in result.taobao.items" :key="item.platform_id"
+                 class="bg-white rounded-xl shadow-sm hover:shadow-md transition p-4">
+                <div class="w-full h-40 bg-gray-100 rounded-lg mb-3 flex items-center justify-center text-4xl">🛒</div>
+                <div class="text-sm text-gray-800 line-clamp-2 h-10">{{ item.title }}</div>
+                <div class="flex items-baseline space-x-2 mt-2">
+                    <span class="text-xl font-bold text-taobao">¥{{ item.price }}</span>
+                    <span v-if="item.original_price" class="text-xs text-gray-400 line-through">¥{{ item.original_price }}</span>
+                </div>
+                <div class="flex justify-between items-center mt-2 text-xs text-gray-400">
+                    <span>销量 {{ item.sales }}</span>
+                    <span>{{ item.shop_name }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 得物列表 -->
+        <div v-if="activeTab === 'dewu'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div v-for="item in result.dewu.items" :key="item.platform_id"
+                 class="bg-white rounded-xl shadow-sm hover:shadow-md transition p-4">
+                <div class="w-full h-40 bg-gray-100 rounded-lg mb-3 flex items-center justify-center text-4xl">👟</div>
+                <div class="text-sm text-gray-800 line-clamp-2 h-10">{{ item.title }}</div>
+                <div class="flex items-baseline space-x-2 mt-2">
+                    <span class="text-xl font-bold text-dewu">¥{{ item.price }}</span>
+                    <span v-if="item.original_price" class="text-xs text-gray-400 line-through">¥{{ item.original_price }}</span>
+                </div>
+                <div class="flex justify-between items-center mt-2 text-xs text-gray-400">
+                    <span>销量 {{ item.sales }}</span>
+                    <span>{{ item.shop_name }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 价格图表 -->
+        <div v-if="activeTab === 'chart'" class="bg-white rounded-xl shadow p-6">
+            <h3 class="font-bold text-gray-800 mb-4">价格分布对比</h3>
+            <canvas id="priceChart" height="300"></canvas>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                <div>
+                    <h4 class="font-medium text-gray-700 mb-2">价格区间分布</h4>
+                    <canvas id="distributionChart" height="200"></canvas>
+                </div>
+                <div>
+                    <h4 class="font-medium text-gray-700 mb-2">平台优势对比</h4>
+                    <canvas id="pieChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 空状态 -->
+    <div v-if="!result && !loading" class="max-w-7xl mx-auto px-4 py-16 text-center">
+        <div class="text-6xl mb-4">🔍</div>
+        <h3 class="text-xl text-gray-600 mb-2">输入关键词开始比价</h3>
+        <p class="text-gray-400">支持搜索商品名称、品牌、型号等</p>
+    </div>
+
+    <!-- 登录弹窗 -->
+    <div v-if="showLogin" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="showLogin = false">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-md">
+            <h3 class="text-xl font-bold mb-4">{{ isRegister ? '注册' : '登录' }}</h3>
+            <div class="space-y-3">
+                <input v-model="loginForm.username" class="w-full px-4 py-3 border rounded-lg outline-none focus:ring-2 focus:ring-primary" placeholder="用户名">
+                <input v-if="isRegister" v-model="loginForm.email" type="email" class="w-full px-4 py-3 border rounded-lg outline-none focus:ring-2 focus:ring-primary" placeholder="邮箱">
+                <input v-model="loginForm.password" type="password" class="w-full px-4 py-3 border rounded-lg outline-none focus:ring-2 focus:ring-primary" placeholder="密码">
+                <button @click="handleAuth" class="w-full bg-primary text-white py-3 rounded-lg font-medium hover:bg-indigo-600 transition">
+                    {{ isRegister ? '注册' : '登录' }}
+                </button>
+            </div>
+            <div class="text-center mt-3">
+                <button @click="isRegister = !isRegister" class="text-sm text-primary">
+                    {{ isRegister ? '已有账号？去登录' : '没有账号？去注册' }}
+                </button>
+            </div>
+            <div v-if="authError" class="text-red-500 text-sm text-center mt-2">{{ authError }}</div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>

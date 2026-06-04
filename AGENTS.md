@@ -75,9 +75,8 @@ aliyun rds DescribeDBInstances --RegionId cn-hangzhou  # 查看RDS实例
 4. **sudo 会清除环境变量** — 用 `sudo env VAR=val command` 或 `sudo -E` 传递变量
 5. **密码/哈希验证** — 数据库里的密码哈希要在 MySQL 交互模式下操作，避免 shell 解析 `$` 符号
 6. **端到端验证** — 改完后自己模拟用户操作验证，不能只看"Build complete"就宣布成功
-7. **声称"完成/上线"前 MUST 在真实线上服务器实测（2026-06-03 强化）** — NEVER 只"本地测 + 一次 smoke"就宣布完成。MUST：① curl 真实公网接口跑通 ② 核对线上 DB schema 真的迁移了、日志有没有 Traceback（区分历史 vs 本次） ③ 核对**数据真的在流**（不是只看接口返回 200，要看库里有没有真实数据——self-test 的 200 不算）。**给别人（兵哥/廖总）的命令/curl，MUST 自己先在线上原样跑通再发出去，NEVER 假设它对。** 完成且无 bug → 自动 push 双分支（develop + main），不等用户问。
 
-8. **共享 ECS NEVER 为救单个组件重启整机（2026-06-04 实战教训，最高优先级）** — 本项目 caiji（caiji.tianku.com）与**招商系统**（zhaoshang / fy.tianku.com，黄总 prod）**同在一台 ECS** `i-bp18zrqcsw2yuxmy6yd2`（47.99.195.159），同机还有 MySQL。**只为救某个挂掉的组件（阿里云助手 Agent、caiji、任意 service）NEVER 重启整台机器**——重启会把同机的**招商系统一起搞挂**（用户的核心顾虑）。**正解**：阿里云控制台「远程连接」VNC 登进去 `sudo systemctl restart <组件>`（救 Agent = `sudo systemctl restart aliyun.service`；救 caiji = `systemctl restart caiji-mvp`；救招商 = `systemctl restart fengyun-backend`），**同机其他服务零中断**。**反例**：2026-06-04 为补 caiji 服务器侧 curl 证据去救掉线的 Agent，走了"重启整机"→fy.tianku.com 全挂（`ERR_TUNNEL_CONNECTION_FAILED`）+首轮重启被中途打断 unclean shutdown→`/var/log/journal` 损坏→开机卡 `systemd-tmpfiles-setup`（Create Volatile Files）7min+（实查证伪"磁盘满"：磁盘仅 52%、/tmp 17 文件，真因=unclean-shutdown 开机自修复延迟），第二次干净重启才恢复（事后只读实查 caiji sqlite integrity ok + 两服务 active + 页面 200 → **未见数据丢失迹象**，未做 MySQL 表级对账）。**无 agent 也能诊断**：`aliyun ecs GetInstanceConsoleOutput`（boot 日志 base64 解码）+ `aliyun ecs DescribeInstances ... Status`（Running=电源开 ≠ OS 启动完）+ `DescribeCloudAssistantStatus`（agent 心跳）+ 用户 VNC 真实屏。**根因隐患（高概率推断，非定论）**：4GB 单机混部 Java 招商 + Python caiji + MySQL，**无 swap**、Java 占 1.1G/总 3.4G，内存紧 → 易触发 OOM（实查 journal 有 6/2 OOM 杀 node 的实锤）；但今天 Agent 掉线**无对应 OOM 记录**（重启已清当时日志），不能说死今天就是 OOM。**建议**给这台机配内存/磁盘告警，长远拆机或升配。**红线**：任何"重启整机/StopInstance/RebootInstance"动作前 MUST 先确认同机有没有别人的 prod，有就改用 `systemctl restart <组件>`，NEVER 直接重启整机。
+7. **共享 ECS NEVER 为救单个组件重启整机（2026-06-04 实战教训，最高优先级）** — 本项目 caiji（caiji.tianku.com）与**招商系统**（zhaoshang / fy.tianku.com，黄总 prod）**同在一台 ECS** `i-bp18zrqcsw2yuxmy6yd2`（47.99.195.159），同机还有 MySQL。**只为救某个挂掉的组件（阿里云助手 Agent、caiji、任意 service）NEVER 重启整台机器 / StopInstance / RebootInstance**——重启会把同机的**招商系统一起搞挂**（用户核心顾虑）。**正解**：阿里云控制台「远程连接」VNC 登进去 `sudo systemctl restart <组件>`（救 Agent = `sudo systemctl restart aliyun.service`；救 caiji = `systemctl restart caiji-mvp`；救招商 = `systemctl restart fengyun-backend`），同机其他服务零中断。**反例**：2026-06-04 为补 caiji 服务器侧 curl 证据去救掉线的 Agent，走了"重启整机"→fy.tianku.com 全挂（`ERR_TUNNEL_CONNECTION_FAILED`）+首轮重启被中途打断 unclean shutdown→`/var/log/journal` 损坏→开机卡 `systemd-tmpfiles-setup` 7min+（实查证伪"磁盘满"：磁盘仅 52%、/tmp 17 文件，真因=unclean-shutdown 自修复延迟），第二次干净重启才恢复。**无 agent 也能诊断**：`aliyun ecs GetInstanceConsoleOutput`（boot 日志 base64）+ `DescribeInstances ... Status`（Running=电源开≠OS启动完）+ `DescribeCloudAssistantStatus` + 用户 VNC。**口径分三档(GPT 2026-06-04 校准)**：已证（caiji sqlite integrity ok→未见数据丢失迹象，未做 MySQL 表级对账≠完整证明）/ 高概率（无 swap+Java 占 1.1G/3.4G 紧、6/2 有 OOM 杀 node 实锤，但今天 Agent 之死无对应 OOM 记录→不当定论）/ 线上封顶（靠代码+51测试证明，线上 `limit=99999` 返 200 但 count:0 只证部署版本含代码+接口可用+鉴权生效，NEVER 说"线上封顶实测OK"）。**根因隐患**：4GB 单机混部 Java 招商+Python caiji+MySQL 内存紧→建议配内存/磁盘告警+长远拆机或升配。**红线**：任何重启整机动作前 MUST 先确认同机有没有别人的 prod，有就改用 `systemctl restart <组件>`。
 
 ## 爬虫特别规则（IMPORTANT）
 
@@ -168,15 +167,15 @@ async (page) => {
 **安装步骤（全部用官方 CLI，不手改任何配置文件）：**
 ```bash
 # 1. 先清理所有旧的手动配置（关键，官方 README 明确要求）
-claude mcp remove chrome-devtools
+Codex mcp remove chrome-devtools
 
 # 2. 添加官方 marketplace
-claude plugin marketplace add ChromeDevTools/chrome-devtools-mcp
+Codex plugin marketplace add ChromeDevTools/chrome-devtools-mcp
 
 # 3. 安装插件（marketplace 名 = chrome-devtools-plugins，插件名 = chrome-devtools-mcp）
-claude plugin install chrome-devtools-mcp@chrome-devtools-plugins
+Codex plugin install chrome-devtools-mcp@chrome-devtools-plugins
 
-# 4. 重启 Claude Code (/exit 后重进) 激活插件
+# 4. 重启 Codex (/exit 后重进) 激活插件
 ```
 
 **默认行为**：插件版 MCP 启动**独立 Chrome 实例**（缓存在 `$HOME/.cache/chrome-devtools-mcp/chrome-profile-stable`），和日常 Chrome 隔离。不会复用登录态，但更稳定，不会因日常 Chrome 标签页多而超时。
@@ -184,25 +183,25 @@ claude plugin install chrome-devtools-mcp@chrome-devtools-plugins
 ### 插件管理铁律（永久配置，2026-04-17 教训）
 
 **NEVER 手改配置文件**：
-- ❌ `~/.claude.json`（全局 mcpServers）
-- ❌ `~/.claude/plugins/config.json`（enabledPlugins）
+- ❌ `~/.Codex.json`（全局 mcpServers）
+- ❌ `~/.Codex/plugins/config.json`（enabledPlugins）
 - ❌ 项目 `.mcp.json`（如果官方插件已覆盖）
 
 **ALWAYS 用官方 CLI**：
 | 操作 | 官方命令 |
 |---|---|
-| 列出插件 | `claude plugin list` |
-| 禁用插件 | `claude plugin disable <plugin>@<marketplace>` |
-| 启用插件 | `claude plugin enable <plugin>@<marketplace>` |
-| 卸载插件 | `claude plugin uninstall <plugin>@<marketplace>` |
-| 刷新 marketplace | `claude plugin marketplace update <name>` |
-| 移除 MCP | `claude mcp remove <name>` |
-| 查看 MCP 连接 | `claude mcp list` |
+| 列出插件 | `Codex plugin list` |
+| 禁用插件 | `Codex plugin disable <plugin>@<marketplace>` |
+| 启用插件 | `Codex plugin enable <plugin>@<marketplace>` |
+| 卸载插件 | `Codex plugin uninstall <plugin>@<marketplace>` |
+| 刷新 marketplace | `Codex plugin marketplace update <name>` |
+| 移除 MCP | `Codex mcp remove <name>` |
+| 查看 MCP 连接 | `Codex mcp list` |
 
 ### 插件错误诊断官方顺序（2026-04-17 教训）
 1. 看 `/plugin` → **Errors** 标签页的精确报错
-2. `claude plugin marketplace update <marketplace>` 刷新 marketplace 缓存
-3. 读 `~/.claude/plugins/marketplaces/<name>/.claude-plugin/marketplace.json` 完整定义（LSP 插件的真实配置在这里，不在缓存目录）
+2. `Codex plugin marketplace update <marketplace>` 刷新 marketplace 缓存
+3. 读 `~/.Codex/plugins/marketplaces/<name>/.Codex-plugin/marketplace.json` 完整定义（LSP 插件的真实配置在这里，不在缓存目录）
 4. 检查二进制是否在 `$PATH`（LSP 插件依赖用户自备二进制，如 pyright-langserver、typescript-language-server、intelephense、jdtls）
 5. **NEVER** 只看缓存目录内容就下结论"占位符"——LSP 插件的 `./plugins/<name>/` 源目录只有 LICENSE+README 是**设计如此**（配置全在 marketplace.json 的 `lspServers` 字段内联）
 
@@ -216,24 +215,24 @@ claude plugin install chrome-devtools-mcp@chrome-devtools-plugins
 
 **配置路径（血泪教训 2026-04-17：真源头是 plugin.json 不是 .mcp.json）**：
 
-Claude Code **插件**的 MCP 配置入口是 `.claude-plugin/plugin.json` 的 `mcpServers` 字段，**不是** `.mcp.json`。`.mcp.json` 只是给 gemini-cli / codex 用的兼容副本，Claude Code 根本不读。
+Codex **插件**的 MCP 配置入口是 `.Codex-plugin/plugin.json` 的 `mcpServers` 字段，**不是** `.mcp.json`。`.mcp.json` 只是给 gemini-cli / codex 用的兼容副本，Codex 根本不读。
 
 | 文件 | 作用 | 改这里生效吗 |
 |---|---|---|
-| `~/.claude/plugins/marketplaces/chrome-devtools-plugins/.claude-plugin/plugin.json` | **真源头，Claude Code 读这份** | ✅ **必改** |
-| `~/.claude/plugins/cache/chrome-devtools-plugins/chrome-devtools-mcp/<VERSION>/.claude-plugin/plugin.json` | 从源头复制的缓存 | ✅ 建议同步改 |
-| `~/.claude/plugins/marketplaces/chrome-devtools-plugins/.mcp.json` | gemini-cli / codex 兼容副本 | ❌ Claude Code 不读 |
-| `~/.claude/plugins/cache/chrome-devtools-plugins/chrome-devtools-mcp/<VERSION>/.mcp.json` | 兼容副本的缓存 | ❌ Claude Code 不读 |
+| `~/.Codex/plugins/marketplaces/chrome-devtools-plugins/.Codex-plugin/plugin.json` | **真源头，Codex 读这份** | ✅ **必改** |
+| `~/.Codex/plugins/cache/chrome-devtools-plugins/chrome-devtools-mcp/<VERSION>/.Codex-plugin/plugin.json` | 从源头复制的缓存 | ✅ 建议同步改 |
+| `~/.Codex/plugins/marketplaces/chrome-devtools-plugins/.mcp.json` | gemini-cli / codex 兼容副本 | ❌ Codex 不读 |
+| `~/.Codex/plugins/cache/chrome-devtools-plugins/chrome-devtools-mcp/<VERSION>/.mcp.json` | 兼容副本的缓存 | ❌ Codex 不读 |
 
 **正确流程**：
-1. 编辑源头 `plugin.json`：`~/.claude/plugins/marketplaces/chrome-devtools-plugins/.claude-plugin/plugin.json`
-2. 同步改 cache `plugin.json`：路径里 `<VERSION>` 换成实际版本号（`claude plugin list | grep chrome-devtools` 查）
+1. 编辑源头 `plugin.json`：`~/.Codex/plugins/marketplaces/chrome-devtools-plugins/.Codex-plugin/plugin.json`
+2. 同步改 cache `plugin.json`：路径里 `<VERSION>` 换成实际版本号（`Codex plugin list | grep chrome-devtools` 查）
 3. 在 `mcpServers.chrome-devtools.args` 数组末尾加 `"--autoConnect"`
 4. 清理残留 MCP 进程：`pkill -f chrome-devtools-mcp`
-5. `/exit` 重启 Claude Code
+5. `/exit` 重启 Codex
 
 **诊断 autoConnect 是否真生效的办法**：
-- ❌ `claude mcp list` 显示 `✓ Connected` 不代表连到了日常 Chrome（只代表 MCP server 启动成功）
+- ❌ `Codex mcp list` 显示 `✓ Connected` 不代表连到了日常 Chrome（只代表 MCP server 启动成功）
 - ✅ 调用 `list_pages`，如果看到你日常 Chrome 的标签页标题（如"淘宝"、"得物"）= 连上了
 - ❌ 如果只看到 `about:blank [selected]` = MCP 启了独立 Chrome，autoConnect 没生效
 
@@ -248,17 +247,17 @@ Claude Code **插件**的 MCP 配置入口是 `.claude-plugin/plugin.json` 的 `
 6. **安全警告（官方 README 原文）**：
    > "Make sure that you are not browsing any sensitive websites while the debugging port is open."
 
-**改完必做**：`/exit` 重启 Claude Code 才生效（MCP server 只在启动时读 `.mcp.json`）
+**改完必做**：`/exit` 重启 Codex 才生效（MCP server 只在启动时读 `.mcp.json`）
 
 **插件升级后重新打补丁的流程**（3 步）：
 ```bash
 # 1. 查新版本号
-claude plugin list | grep chrome-devtools
+Codex plugin list | grep chrome-devtools
 # 2. 编辑两份 plugin.json（marketplace 源头 + cache 新版本目录）
 #    在 mcpServers.chrome-devtools.args 数组末尾加 "--autoConnect"
 #    路径模板：
-#      ~/.claude/plugins/marketplaces/chrome-devtools-plugins/.claude-plugin/plugin.json
-#      ~/.claude/plugins/cache/chrome-devtools-plugins/chrome-devtools-mcp/<X.Y.Z>/.claude-plugin/plugin.json
+#      ~/.Codex/plugins/marketplaces/chrome-devtools-plugins/.Codex-plugin/plugin.json
+#      ~/.Codex/plugins/cache/chrome-devtools-plugins/chrome-devtools-mcp/<X.Y.Z>/.Codex-plugin/plugin.json
 # 3. 清理残留 + 重启：pkill -f chrome-devtools-mcp && /exit 后重进
 ```
 
@@ -308,15 +307,15 @@ claude plugin list | grep chrome-devtools
 - 图片 CDN URL 格式：`https://cdn.midjourney.com/{job-id}/0_0.jpeg`（全尺寸）
 - 每个 job 有 4 个变体（index 0-3）
 
-### Claude Code 升级规则
-- 用 `claude update` 升级，NEVER 用 `brew upgrade claude-code`（Homebrew stable channel 版本落后）
-- 官方推荐安装方式：`curl -fsSL https://claude.ai/install.sh | bash`（原生安装，自动更新）
+### Codex 升级规则
+- 用 `Codex update` 升级，NEVER 用 `brew upgrade Codex`（Homebrew stable channel 版本落后）
+- 官方推荐安装方式：`curl -fsSL https://Codex.ai/install.sh | bash`（原生安装，自动更新）
 
-### claude-hud 插件布局修复（0.0.12 版本 bug）
-- 更新 claude-hud 后 HUD 从横排变竖排，是 0.0.12 的 bug
-- **根因**：`UNKNOWN_TERMINAL_WIDTH = 40` 太窄，Claude Code statusline 子进程检测不到终端宽度时回退到 40 字符，导致 Context+Usage 永远被拆成多行
-- **修复**：`~/.claude/plugins/cache/claude-hud/claude-hud/0.0.12/dist/utils/terminal.js` 中 `UNKNOWN_TERMINAL_WIDTH` 从 40 改为 200
-- **配置**：`~/.claude/plugins/claude-hud/config.json` 的 `lineLayout` 必须是 `"expanded"`（不是 `"compact"`，横排布局就是 expanded 模式）
+### Codex-hud 插件布局修复（0.0.12 版本 bug）
+- 更新 Codex-hud 后 HUD 从横排变竖排，是 0.0.12 的 bug
+- **根因**：`UNKNOWN_TERMINAL_WIDTH = 40` 太窄，Codex statusline 子进程检测不到终端宽度时回退到 40 字符，导致 Context+Usage 永远被拆成多行
+- **修复**：`~/.Codex/plugins/cache/Codex-hud/Codex-hud/0.0.12/dist/utils/terminal.js` 中 `UNKNOWN_TERMINAL_WIDTH` 从 40 改为 200
+- **配置**：`~/.Codex/plugins/Codex-hud/config.json` 的 `lineLayout` 必须是 `"expanded"`（不是 `"compact"`，横排布局就是 expanded 模式）
 - **注意**：插件更新会覆盖此补丁，如果又变竖排，重新改 `UNKNOWN_TERMINAL_WIDTH = 200` 即可
 
 ## 需求文档写法（IMPORTANT）
@@ -349,6 +348,14 @@ claude plugin list | grep chrome-devtools
 - zsh 中调用含 `[]` 的参数必须加引号，如 `'rows=Regions.Region[]'`，否则 zsh 当 glob 解析报错
 - 部署相关操作（ECS、SLB、RDS）MUST 先确认目标区域和实例 ID，避免误操作生产环境
 - 查看帮助：`aliyun help`，查看某个产品：`aliyun ecs help`
+
+## 爆品推同步登录态排查铁律（IMPORTANT，2026-05-25）
+
+- `baopintui-sync` 批次停在某个时间点时，NEVER 只看 cookie 名称就断言“爆品推登录失效”或“launchd 没跑”。
+- 必须按顺序核实：① `launchctl list | rg baopintui` 看 4 个 job 是否触发 ② tail 对应 job 日志看真实错误 ③ 用当前 Chrome cookies 对爆品推真实接口发一次只读请求，看是否 `code=200`。
+- 2026-05-25 事故：脚本强制要求 `_identity + PHPSESSID`，但 Chrome 已不再保留 `_identity`；实测爆品推接口只靠 `PHPSESSID` 仍能返回 `code=200`。过度严格的前置校验误杀了订单、红包、渠道红包账单三个 job。
+- 后续原则：`_identity` 视为易变辅助 cookie，不能作为硬门槛；登录态是否可用以真实接口响应为准。只有真实请求返回 302/401/code 非 200，才要求用户重新登录。
+- 已修复参考：`/Users/tkag/Projects/baopintui-sync` commit `66e68ad`，`REQUIRED_COOKIES = {"PHPSESSID"}`，并增加 `_identity` 缺失但 session cookie 存在时允许初始化的回归测试。
 
 ## 环境变量
 

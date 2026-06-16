@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>40r 海澜之家 POLO 衫作业</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ff3b1f'/%3E%3Ctext x='32' y='42' text-anchor='middle' font-size='34' font-family='Arial' font-weight='800' fill='white'%3E40%3C/text%3E%3C/svg%3E">
+  <style>
+    :root {
+      --page-bg: #f3f3f3;
+      --paper: #ffffff;
+      --ink: #191919;
+      --muted: #7a7a7a;
+      --line: #e6e1db;
+      --hot: #ff3b1f;
+      --warm: #ff8a00;
+      --coupon: #fff2d9;
+      --coupon-ink: #6f3a00;
+      --bubble: #ffffff;
+      --bubble-soft: #fff8ef;
+      --shadow: 0 10px 30px rgba(25, 25, 25, 0.08);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      background: var(--page-bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+      letter-spacing: 0;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(255, 138, 0, 0.08), transparent 30rem),
+        linear-gradient(180deg, #fafafa 0%, var(--page-bg) 26rem);
+    }
+
+    button,
+    a {
+      font: inherit;
+    }
+
+    .phone-shell {
+      width: min(100%, 600px);
+      margin: 0 auto;
+      min-height: 100vh;
+      background: linear-gradient(180deg, #f7f7f7 0%, #eeeeee 100%);
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04);
+      position: relative;
+      padding-bottom: 94px;
+    }
+
+    .deal-bar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 18px;
+      background: linear-gradient(90deg, var(--warm) 0%, var(--hot) 100%);
+      color: #fff;
+      text-align: center;
+      font-weight: 800;
+      line-height: 1.35;
+      box-shadow: 0 8px 18px rgba(255, 59, 31, 0.22);
+    }
+
+    .deal-bar span {
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    .hero-note {
+      margin: 14px 12px 6px;
+      padding: 12px;
+      border: 1px solid rgba(255, 138, 0, 0.22);
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, #fff 0%, #fff7e8 100%);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-topline {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .hero-copy {
+      min-width: 0;
+    }
+
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #191919;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    h1 {
+      margin: 10px 0 0;
+      font-size: clamp(25px, 7vw, 42px);
+      line-height: 0.98;
+      letter-spacing: 0;
+    }
+
+    .price-line {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .price {
+      color: var(--hot);
+      font-size: clamp(42px, 12vw, 68px);
+      font-weight: 900;
+      line-height: 0.9;
+    }
+
+    .price small {
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .market {
+      color: var(--muted);
+      font-size: 13px;
+      text-decoration: line-through;
+    }
+
+    .hero-thumb {
+      width: 96px;
+      height: 128px;
+      flex: 0 0 auto;
+      overflow: hidden;
+      border-radius: var(--radius);
+      background: #ddd;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+    }
+
+    .hero-thumb img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+      object-position: 18% top;
+    }
+
+    .urgent {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .urgent strong {
+      display: block;
+      padding: 9px 10px;
+      border-radius: var(--radius);
+      background: var(--coupon);
+      color: var(--coupon-ink);
+      text-align: center;
+      font-size: 14px;
+      line-height: 1.2;
+    }
+
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .tag {
+      padding: 6px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.76);
+      color: #3e3e3e;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .chat {
+      padding: 6px 12px 18px;
+    }
+
+    .message {
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr);
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 7px;
+      background:
+        linear-gradient(135deg, rgba(255, 138, 0, 0.24), rgba(255, 59, 31, 0.12)),
+        #20242a;
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+    }
+
+    .sender {
+      color: #8b8b8b;
+      font-size: 12px;
+      margin: 0 0 4px;
+    }
+
+    .bubble {
+      width: fit-content;
+      max-width: 100%;
+      padding: 11px 13px;
+      border-radius: 4px var(--radius) var(--radius) var(--radius);
+      background: var(--bubble);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      font-size: 16px;
+      line-height: 1.55;
+      white-space: pre-line;
+      overflow-wrap: anywhere;
+    }
+
+    .bubble.action {
+      background: var(--bubble-soft);
+      border: 1px solid rgba(255, 138, 0, 0.2);
+    }
+
+    .bubble strong {
+      color: var(--hot);
+      font-weight: 900;
+    }
+
+    .media-card {
+      width: min(100%, 430px);
+      overflow: hidden;
+      border-radius: 6px;
+      background: #ddd;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    }
+
+    .media-card img {
+      width: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
+    .copy-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 9px;
+    }
+
+    .copy-btn {
+      border: 0;
+      border-radius: 999px;
+      padding: 7px 11px;
+      background: #191919;
+      color: #fff;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .copy-btn.secondary {
+      background: #fff;
+      color: #191919;
+      box-shadow: inset 0 0 0 1px #ddd;
+    }
+
+    .notice {
+      margin: 18px 12px 0;
+      padding: 11px 12px;
+      border-radius: var(--radius);
+      background: #fff;
+      color: #6d6d6d;
+      font-size: 12px;
+      line-height: 1.65;
+      border: 1px dashed #d6d6d6;
+    }
+
+    .bottom-cta {
+      position: fixed;
+      left: 50%;
+      bottom: 0;
+      z-index: 30;
+      width: min(100%, 600px);
+      transform: translateX(-50%);
+      display: grid;
+      grid-template-columns: 1fr 1.35fr;
+      gap: 8px;
+      padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+      background: rgba(255, 255, 255, 0.94);
+      border-top: 1px solid rgba(0, 0, 0, 0.08);
+      backdrop-filter: blur(12px);
+    }
+
+    .bottom-cta a,
+    .bottom-cta button {
+      min-height: 48px;
+      border: 0;
+      border-radius: var(--radius);
+      display: grid;
+      place-items: center;
+      text-decoration: none;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .bottom-cta button {
+      background: #191919;
+      color: #fff;
+    }
+
+    .bottom-cta a {
+      background: linear-gradient(90deg, var(--warm) 0%, var(--hot) 100%);
+      color: #fff;
+      box-shadow: 0 8px 16px rgba(255, 59, 31, 0.24);
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 82px;
+      z-index: 40;
+      transform: translate(-50%, 12px);
+      pointer-events: none;
+      opacity: 0;
+      padding: 9px 13px;
+      border-radius: 999px;
+      background: rgba(0, 0, 0, 0.82);
+      color: #fff;
+      font-size: 13px;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    @media (min-width: 720px) {
+      .phone-shell {
+        margin-top: 18px;
+        margin-bottom: 18px;
+        border-radius: 18px;
+        overflow: hidden;
+      }
+
+      .deal-bar {
+        position: relative;
+      }
+    }
+
+    @media (max-width: 360px) {
+      .urgent {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-thumb {
+        width: 82px;
+        height: 112px;
+      }
+
+      .bubble {
+        font-size: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="phone-shell">
+    <header class="deal-bar">
+      <span id="dealTitle"></span>
+    </header>
+
+    <section class="hero-note">
+      <div class="hero-topline">
+        <div class="hero-copy">
+          <span class="kicker" id="dealKicker"></span>
+          <h1 id="heroHeadline"></h1>
+          <div class="price-line">
+            <div class="price"><small>¥</small><span id="dealPrice"></span></div>
+            <div class="market" id="marketPrice"></div>
+          </div>
+        </div>
+        <figure class="hero-thumb">
+          <img id="heroImage" alt="商品实拍图">
+        </figure>
+      </div>
+      <div class="urgent" id="urgentList"></div>
+      <div class="tags" id="tagList"></div>
+    </section>
+
+    <section class="chat" id="chatList" aria-label="购买作业步骤"></section>
+
+    <section class="notice" id="notice"></section>
+  </main>
+
+  <div class="bottom-cta">
+    <button type="button" data-copy-all>复制整段作业</button>
+    <a id="buyLink" target="_blank" rel="noopener">打开链接</a>
+  </div>
+
+  <div class="toast" id="toast">已复制</div>
+
+  <script>
+    const deal = {
+      title: "HLA/海澜之家轻商务短袖POLO衫 2026夏季新款凉感T恤男",
+      kicker: "赛博神车作业",
+      headline: "40r 海澜之家 POLO 衫",
+      price: "40左右",
+      marketPrice: "实体店 179",
+      link: "https://upurl.cn/4rNJhu",
+      heroImage: "https://oss.iyunzk.com/cms/super_page/bXctZXps/6a30d0a33b74f.jpg",
+      urgent: ["不用凑单", "不用凑单", "手慢无", "复制后打开淘宝"],
+      tags: ["三体联名", "马年刺绣", "山不在高", "父亲节礼物", "凉感 POLO"],
+      media: [
+        "https://oss.iyunzk.com/cms/super_page/bXctZXps/6a30cc92d3e33.jpg",
+        "https://oss.iyunzk.com/cms/super_page/bXctZXps/6a30cca415835.png!600",
+        "https://oss.iyunzk.com/cms/super_page/bXctZXps/6a30ccb71b4c4.jpg"
+      ],
+      steps: [
+        { type: "text", text: "以下口令都是复制后打开淘宝。" },
+        { type: "image", mediaIndex: 0 },
+        { type: "text", text: "1️⃣ 领百亿金刚券，如图\n1(NwntgfsFINE)/ AC33", copy: "1(NwntgfsFINE)/ AC33" },
+        { type: "image", mediaIndex: 1 },
+        { type: "text", text: "2️⃣ 领 60-10，没有就换号\n/ MF287 JKJ1gfGnKLT/", copy: "/ MF287 JKJ1gfGnKLT/" },
+        { type: "text", text: "3️⃣ 点一下加入会员\n加入后不用管，直接看下一步\n1(l7G2gfuRFmm)/ AC33", copy: "1(l7G2gfuRFmm)/ AC33" },
+        { type: "text", text: "4️⃣ 领礼金，去右上角直播间\n1(KlfigfH7LLI)/ AC33", copy: "1(KlfigfH7LLI)/ AC33" },
+        { type: "text", text: "搜索 272，看到 POLO 衫后进详情。" },
+        { type: "image", mediaIndex: 2 },
+        { type: "text", text: "价格在 <strong>40 左右</strong>。\n有三体联名、马年刺绣、山不在高这些款，尺码和颜色以页面显示为准。", html: true }
+      ],
+      notice: "说明：这是扩散用作业页模板，价格、券、库存会变动，最终以下单页面为准。页面里没有硬编码账号 Cookie，也不会代替用户自动下单。"
+    };
+
+    const $ = (selector) => document.querySelector(selector);
+
+    function safeText(value) {
+      return String(value ?? "");
+    }
+
+    function showToast(text) {
+      const toast = $("#toast");
+      toast.textContent = text;
+      toast.classList.add("show");
+      window.clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 1700);
+    }
+
+    async function copyText(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast("已复制");
+      } catch (error) {
+        const helper = document.createElement("textarea");
+        helper.value = text;
+        helper.setAttribute("readonly", "");
+        helper.style.position = "fixed";
+        helper.style.left = "-999px";
+        document.body.appendChild(helper);
+        helper.select();
+        document.execCommand("copy");
+        helper.remove();
+        showToast("已复制");
+      }
+    }
+
+    function buildMessage(step, index) {
+      const item = document.createElement("article");
+      item.className = "message";
+
+      const avatar = document.createElement("div");
+      avatar.className = "avatar";
+      avatar.textContent = "赛";
+
+      const content = document.createElement("div");
+      const sender = document.createElement("p");
+      sender.className = "sender";
+      sender.textContent = deal.kicker;
+      content.appendChild(sender);
+
+      if (step.type === "image") {
+        const card = document.createElement("figure");
+        card.className = "media-card";
+        const image = document.createElement("img");
+        image.src = deal.media[step.mediaIndex];
+        image.loading = index > 2 ? "lazy" : "eager";
+        image.alt = "领券步骤截图";
+        card.appendChild(image);
+        content.appendChild(card);
+      } else {
+        const bubble = document.createElement("div");
+        bubble.className = `bubble ${step.copy ? "action" : ""}`;
+        if (step.html) {
+          bubble.innerHTML = step.text;
+        } else {
+          bubble.textContent = safeText(step.text);
+        }
+        content.appendChild(bubble);
+
+        if (step.copy) {
+          const row = document.createElement("div");
+          row.className = "copy-row";
+          const copyButton = document.createElement("button");
+          copyButton.className = "copy-btn";
+          copyButton.type = "button";
+          copyButton.textContent = "复制口令";
+          copyButton.addEventListener("click", () => copyText(step.copy));
+          row.appendChild(copyButton);
+          content.appendChild(row);
+        }
+      }
+
+      item.append(avatar, content);
+      return item;
+    }
+
+    function renderDeal() {
+      $("#dealTitle").textContent = deal.title;
+      $("#dealKicker").textContent = deal.kicker;
+      $("#heroHeadline").textContent = deal.headline;
+      $("#dealPrice").textContent = deal.price.replace("左右", "");
+      $("#marketPrice").textContent = deal.marketPrice;
+      $("#heroImage").src = deal.heroImage;
+      $("#buyLink").href = deal.link;
+      $("#notice").textContent = deal.notice;
+
+      $("#urgentList").replaceChildren(...deal.urgent.map((label) => {
+        const item = document.createElement("strong");
+        item.textContent = label;
+        return item;
+      }));
+
+      $("#tagList").replaceChildren(...deal.tags.map((label) => {
+        const item = document.createElement("span");
+        item.className = "tag";
+        item.textContent = label;
+        return item;
+      }));
+
+      $("#chatList").replaceChildren(...deal.steps.map(buildMessage));
+      document.querySelector("[data-copy-all]").addEventListener("click", () => {
+        const text = [
+          `${deal.headline}`,
+          `不用凑单 不用凑单`,
+          `手慢无，${deal.marketPrice}`,
+          "",
+          ...deal.steps.filter((step) => step.type === "text").map((step) => {
+            const temp = document.createElement("div");
+            temp.innerHTML = step.text;
+            return temp.textContent.trim();
+          }),
+          "",
+          deal.link
+        ].join("\n");
+        copyText(text);
+      });
+    }
+
+    renderDeal();
+  </script>
+</body>
+</html>

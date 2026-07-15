@@ -51,6 +51,19 @@ aliyun rds DescribeDBInstances --RegionId cn-hangzhou  # 查看RDS实例
 - **爬虫/自动化测试使用 Playwright MCP**（隔离环境，避免真实账号被风控）
 - NEVER 用 Chrome DevTools MCP 跑爬虫，防止日常账号被封
 
+### Dock 里冒出第二个 Chrome / 关不掉（2026-07-15 实战）
+
+- **成因**：Playwright MCP 官方**默认就是 headed**（`--help` 原话：`--headless  run browser in headless mode, headed by default`），而插件的 `.mcp.json` 是 `npx @playwright/mcp@latest` **不传任何参数** → 吃默认 → 有头 → Dock 冒图标。**违反本文件"Playwright 必须 headless"那条**，但用户 2026-07-15 决定「先不管」，冒出来再手动关
+- **为什么关不掉**：① 它带 `--no-startup-window` → **根本没窗口**，点 Dock/Cmd+Q 都没反应 ② 真元凶是父进程 `playwright-core cliDaemon`（**PPID=1 的 daemon**）→ 只杀 Chrome 会被它重新拉起
+- **🚨 NEVER `pkill -f chrome`** —— 会把日常 Chrome（带全部登录态）一起干掉。见 memory `feedback_never_kill_chrome`
+- **区分两个 Chrome 的唯一可靠依据 = `--user-data-dir`**：日常 Chrome **无**该参数（用默认 profile `~/Library/Application Support/Google/Chrome`）；自动化 Chrome 带 `--user-data-dir=/var/folders/.../playwright_chromiumdev_profile-*`
+- **正确关法（杀主人，傀儡自己走）**：
+  ```bash
+  ps -Ao pid,ppid,command | grep -E "cliDaemon|playwright_chromiumdev_profile" | grep -v grep
+  # 校验 PID 命令行匹配后再 kill，防 PID 复用误杀
+  kill <cliDaemon PID>    # 傀儡 Chrome 随主人一起退出，日常 Chrome 零影响
+  ```
+
 ## 主动行为准则（CRITICAL）
 
 - 发现 bug 必须主动修复，NEVER 等用户指出才改正

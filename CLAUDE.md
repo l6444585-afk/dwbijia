@@ -77,7 +77,7 @@ aliyun rds DescribeDBInstances --RegionId cn-hangzhou  # 查看RDS实例
 6. **端到端验证** — 改完后自己模拟用户操作验证，不能只看"Build complete"就宣布成功
 7. **声称"完成/上线"前 MUST 在真实线上服务器实测（2026-06-03 强化）** — NEVER 只"本地测 + 一次 smoke"就宣布完成。MUST：① curl 真实公网接口跑通 ② 核对线上 DB schema 真的迁移了、日志有没有 Traceback（区分历史 vs 本次） ③ 核对**数据真的在流**（不是只看接口返回 200，要看库里有没有真实数据——self-test 的 200 不算）。**给别人（兵哥/廖总）的命令/curl，MUST 自己先在线上原样跑通再发出去，NEVER 假设它对。** 完成且无 bug → 自动 push 双分支（develop + main），不等用户问。
 
-8. **共享 ECS NEVER 为救单个组件重启整机（2026-06-04 实战教训，最高优先级）** — 本项目 caiji（caiji.tianku.com）与**招商系统**（zhaoshang / fy.tianku.com，黄总 prod）**同在一台 ECS** `i-bp18zrqcsw2yuxmy6yd2`（47.99.195.159），同机还有 MySQL。**只为救某个挂掉的组件（阿里云助手 Agent、caiji、任意 service）NEVER 重启整台机器**——重启会把同机的**招商系统一起搞挂**（用户的核心顾虑）。**正解**：阿里云控制台「远程连接」VNC 登进去 `sudo systemctl restart <组件>`（救 Agent = `sudo systemctl restart aliyun.service`；救 caiji = `systemctl restart caiji-mvp`；救招商 = `systemctl restart fengyun-backend`），**同机其他服务零中断**。**反例**：2026-06-04 为补 caiji 服务器侧 curl 证据去救掉线的 Agent，走了"重启整机"→fy.tianku.com 全挂（`ERR_TUNNEL_CONNECTION_FAILED`）+首轮重启被中途打断 unclean shutdown→`/var/log/journal` 损坏→开机卡 `systemd-tmpfiles-setup`（Create Volatile Files）7min+（实查证伪"磁盘满"：磁盘仅 52%、/tmp 17 文件，真因=unclean-shutdown 开机自修复延迟），第二次干净重启才恢复（事后只读实查 caiji sqlite integrity ok + 两服务 active + 页面 200 → **未见数据丢失迹象**，未做 MySQL 表级对账）。**无 agent 也能诊断**：`aliyun ecs GetInstanceConsoleOutput`（boot 日志 base64 解码）+ `aliyun ecs DescribeInstances ... Status`（Running=电源开 ≠ OS 启动完）+ `DescribeCloudAssistantStatus`（agent 心跳）+ 用户 VNC 真实屏。**根因隐患（高概率推断，非定论）**：4GB 单机混部 Java 招商 + Python caiji + MySQL，**无 swap**、Java 占 1.1G/总 3.4G，内存紧 → 易触发 OOM（实查 journal 有 6/2 OOM 杀 node 的实锤）；但今天 Agent 掉线**无对应 OOM 记录**（重启已清当时日志），不能说死今天就是 OOM。**建议**给这台机配内存/磁盘告警，长远拆机或升配。**红线**：任何"重启整机/StopInstance/RebootInstance"动作前 MUST 先确认同机有没有别人的 prod，有就改用 `systemctl restart <组件>`，NEVER 直接重启整机。
+8. **共享 ECS NEVER 为救单个组件重启整机（2026-06-04 实战教训，最高优先级）** — 本项目 caiji（caiji.tianku.com）与**招商系统**（zhaoshang / fy.tianku.com，黄总 prod）**同在一台 ECS** `i-bp18zrqcsw2yuxmy6yd2`（47.99.195.159），同机还有 MySQL。**只为救某个挂掉的组件（阿里云助手 Agent、caiji、任意 service）NEVER 重启整台机器**——重启会把同机的**招商系统一起搞挂**（用户的核心顾虑）。**正解**：阿里云控制台「远程连接」VNC 登进去 `sudo systemctl restart <组件>`（救 Agent = `sudo systemctl restart aliyun.service`；救 caiji = `systemctl restart caiji-mvp`；救招商 = `systemctl restart fengyun-backend`），**同机其他服务零中断**。**反例**：2026-06-04 为补 caiji 服务器侧 curl 证据去救掉线的 Agent，走了"重启整机"→fy.tianku.com 全挂（`ERR_TUNNEL_CONNECTION_FAILED`）+首轮重启被中途打断 unclean shutdown→`/var/log/journal` 损坏→开机卡 `systemd-tmpfiles-setup`（Create Volatile Files）7min+（实查证伪"磁盘满"：磁盘仅 52%、/tmp 17 文件，真因=unclean-shutdown 开机自修复延迟），第二次干净重启才恢复（事后只读实查 caiji sqlite integrity ok + 两服务 active + 页面 200 → **未见数据丢失迹象**，未做 MySQL 表级对账）。**无 agent 也能诊断**：`aliyun ecs GetInstanceConsoleOutput`（boot 日志 base64 解码）+ `aliyun ecs DescribeInstances ... Status`（Running=电源开 ≠ OS 启动完）+ `DescribeCloudAssistantStatus`（agent 心跳）+ 用户 VNC 真实屏。**根因隐患（高概率推断，非定论）**：4GB 单机混部 Java 招商 + Python caiji + MySQL，**无 swap**、Java 占 1.1G/总 3.4G，内存紧 → 易触发 OOM（实查 journal 有 6/2 OOM 杀 node 的实锤）；但今天 Agent 掉线**无对应 OOM 记录**（重启已清当时日志），不能说死今天就是 OOM。**建议**给这台机配内存/磁盘告警，长远拆机或升配。**红线**：任何"重启整机/StopInstance/RebootInstance"动作前 MUST 先确认同机有没有别人的 prod，有就改用 `systemctl restart <组件>`，NEVER 直接重启整机。**部署补充（2026-07-08 锦秋重申，永久）**：部署 zhaoshang 时 `systemctl restart fengyun-backend`（或 `redeploy.sh` 顺带重启后端）**就是上面「正解」的一种，锦秋是话事人、有权授权、放心用**——NEVER 为"不碰后端"把部署拆成慢流程、或反复问用户"要不要碰后端"（2026-07-08 我又犯这毛病被当场重申）。**服务重启（随便用）≠ 整机重启（绝不碰）**；改后端就重建+重启一步到位，改前端就换前端，构建默认 `systemd-run --scope -p MemoryMax=... -p MemorySwapMax=0` 限内存防 OOM（便宜保险不拖慢）。锦秋说"部署"就直接走完整链路（合main→构建→重启→验证→报结果），别中途停下问。详见 memory `feedback_qiu_authority_fast_deploy` / `reference_zhaoshang_frontend_deploy`。
 
 ## 爬虫特别规则（IMPORTANT）
 
@@ -312,12 +312,14 @@ claude plugin list | grep chrome-devtools
 - 用 `claude update` 升级，NEVER 用 `brew upgrade claude-code`（Homebrew stable channel 版本落后）
 - 官方推荐安装方式：`curl -fsSL https://claude.ai/install.sh | bash`（原生安装，自动更新）
 
-### claude-hud 插件布局修复（0.0.12 版本 bug）
-- 更新 claude-hud 后 HUD 从横排变竖排，是 0.0.12 的 bug
-- **根因**：`UNKNOWN_TERMINAL_WIDTH = 40` 太窄，Claude Code statusline 子进程检测不到终端宽度时回退到 40 字符，导致 Context+Usage 永远被拆成多行
-- **修复**：`~/.claude/plugins/cache/claude-hud/claude-hud/0.0.12/dist/utils/terminal.js` 中 `UNKNOWN_TERMINAL_WIDTH` 从 40 改为 200
-- **配置**：`~/.claude/plugins/claude-hud/config.json` 的 `lineLayout` 必须是 `"expanded"`（不是 `"compact"`，横排布局就是 expanded 模式）
-- **注意**：插件更新会覆盖此补丁，如果又变竖排，重新改 `UNKNOWN_TERMINAL_WIDTH = 200` 即可
+### claude-hud 插件维护（2026-07-15 核对到 0.4.2）
+
+> 完整版见全局 `~/.claude/CLAUDE.md` 的「claude-hud 插件维护」段，此处只留要点，避免两处笔记各自漂移。
+
+- **⚠️ `UNKNOWN_TERMINAL_WIDTH = 40 → 200` 补丁已作废，NEVER 再打**：该常量现在是 `null` 哨兵值（表示"宽度未知"），上游已正经修好横排问题；笔记里的 `0.0.12` 目录早已不存在
+- **配置**：`~/.claude/plugins/claude-hud/config.json`，`lineLayout` 必须是 `"expanded"`。官方 README 明确 threshold 类高级项就是手改此文件
+- **Weekly 不显示不是坏了**：`display.sevenDayThreshold` 官方默认 **80**（只在周额度快用完时才显示）。想一直显示加 `"sevenDayThreshold": 0`。≤0.4.0 因 `validateThreshold` 第二参语义是 max 非 fallback，缺键时静默返回 0 才导致"一直显示"，0.4.1 (#662) 修正为返回 80
+- **教训**：升级后某元素消失，**先读版本目录里的 `CHANGELOG.md`**，别默认"新版删功能"
 
 ## 需求文档写法（IMPORTANT）
 
